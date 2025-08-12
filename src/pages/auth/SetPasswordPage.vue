@@ -47,10 +47,9 @@ const loading = ref(false)
 onMounted(async () => {
   const { data } = await supabase.auth.getSession()
   if (!data.session) {
-    // Kalau user buka langsung tanpa session, kembalikan ke callback agar memproses token
     const s = window.location.search || ''
     const h = window.location.hash || ''
-    if (/(access_token|token_hash|code)=/.test(s + h)) {
+    if (/(access_token|refresh_token|token_hash|type|code)=/.test(s + h)) {
       const payload = s ? s : '?' + h.replace(/^#\/?/, '')
       window.location.replace('/auth/callback' + payload)
     }

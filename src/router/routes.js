@@ -20,7 +20,6 @@ const routes = [
     ],
   },
 
-  // Layout Auth
   {
     path: '/auth',
     component: () => import('layouts/AuthLayout.vue'),

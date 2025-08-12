@@ -16,9 +16,9 @@ import { supabase } from 'src/lib/supabaseClient'
 const router = useRouter()
 const err = ref('')
 
-function mixParams() {
+function collectParams() {
   const q = new URLSearchParams(window.location.search)
-  if (window.location.hash && (!q.size || !q.get('access_token'))) {
+  if (window.location.hash) {
     const h = new URLSearchParams(window.location.hash.replace(/^#\/?/, ''))
     for (const [k, v] of h.entries()) if (!q.has(k)) q.set(k, v)
   }
@@ -27,24 +27,26 @@ function mixParams() {
 
 onMounted(async () => {
   try {
-    const p = mixParams()
-
-    const access_token = p.get('access_token')
-    const refresh_token = p.get('refresh_token')
-    const token_hash = p.get('token_hash')
+    const p = collectParams()
+    const at = p.get('access_token')
+    const rt = p.get('refresh_token')
+    const th = p.get('token_hash')
     const type = p.get('type') || 'invite'
     const code = p.get('code')
 
     let ok = false
 
-    if (access_token && refresh_token) {
-      const { data, error } = await supabase.auth.setSession({ access_token, refresh_token })
+    if (at && rt) {
+      const { data, error } = await supabase.auth.setSession({
+        access_token: at,
+        refresh_token: rt,
+      })
       if (error) throw error
       ok = !!data.session
     }
 
-    if (!ok && token_hash) {
-      const { data, error } = await supabase.auth.verifyOtp({ token_hash, type })
+    if (!ok && th) {
+      const { data, error } = await supabase.auth.verifyOtp({ token_hash: th, type })
       if (error) throw error
       ok = !!data.session
     }
@@ -55,11 +57,8 @@ onMounted(async () => {
       ok = !!data.session
     }
 
-    if (!ok) {
-      throw new Error('Tautan undangan tidak valid / sudah kedaluwarsa.')
-    }
+    if (!ok) throw new Error('Tautan tidak valid / sudah kedaluwarsa.')
 
-    // sukses → ke set password
     router.replace('/auth/set-password')
   } catch (e) {
     console.error(e)
