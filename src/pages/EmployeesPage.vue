@@ -308,6 +308,8 @@ import { ref, onMounted, computed } from 'vue'
 import { supabase } from 'src/lib/supabaseClient'
 import { useQuasar } from 'quasar'
 import { useRouter } from 'vue-router'
+// eslint-disable-next-line no-unused-vars
+import axios from 'axios'
 
 const $q = useQuasar()
 const router = useRouter()
@@ -831,6 +833,7 @@ const resetForm = () => {
     position_id: '',
     salary: null,
     email: '',
+    password: '',
     phone_number: '',
     join_date: '',
     end_date: null,
