@@ -22,7 +22,6 @@ const routes = [
     ],
   },
 
-  // Rute khusus untuk otentikasi yang menggunakan AuthLayout
   {
     path: '/auth',
     component: () => import('layouts/AuthLayout.vue'),
@@ -38,7 +37,6 @@ const routes = [
     ],
   },
 
-  // Rute dashboard yang memerlukan otentikasi
   {
     path: '/dashboard',
     component: () => import('layouts/DashboardLayout.vue'),
@@ -53,7 +51,6 @@ const routes = [
     children: [{ path: '', component: () => import('pages/DashboardPage.vue') }],
   },
 
-  // Grup rute khusus untuk modul karyawan
   {
     path: '/dashboard/employees',
     component: () => import('layouts/EmployeeLayout.vue'),
@@ -63,10 +60,10 @@ const routes = [
     ],
   },
 
-  // Rute catch-all tanpa logika redirect
   {
     path: '/:catchAll(.*)*',
     component: () => import('pages/ErrorNotFound.vue'),
+    // Hapus logika beforeEnter yang menyebabkan redirect loop dari sini
   },
 ]
 

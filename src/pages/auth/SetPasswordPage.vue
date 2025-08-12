@@ -51,16 +51,12 @@ const loading = ref(false)
 const router = useRouter()
 const $q = useQuasar()
 
+// Hapus logika onMounted yang sebelumnya
+// Supabase akan otomatis memproses token dari URL hash.
+
 async function setPassword() {
   loading.value = true
   try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-    if (!session) {
-      throw new Error('Auth session missing!')
-    }
-
     const { error } = await supabase.auth.updateUser({
       password: password.value,
     })
