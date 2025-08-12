@@ -6,6 +6,4 @@
   </q-layout>
 </template>
 
-<script setup>
-// layout minimal khusus halaman auth
-</script>
+<script setup></script>

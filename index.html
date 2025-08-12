@@ -19,35 +19,6 @@
     <link rel="icon" type="image/ico" href="favicon.ico" />
   </head>
   <body>
-    <script>
-      // Tangkap token dari email Supabase seawal mungkin (sebelum Vue/Quasar mount)
-      ;(function () {
-        try {
-          var hasQuery = window.location.search.indexOf('access_token=') !== -1
-          var hasHash = window.location.hash.indexOf('access_token=') !== -1
-
-          if (hasQuery || hasHash) {
-            var raw = hasQuery
-              ? window.location.search.slice(1) // buang '?'
-              : window.location.hash.replace(/^#\/?/, '') // buang '#' dan optional '/'
-
-            var sp = new URLSearchParams(raw)
-            var at = sp.get('access_token')
-            var rt = sp.get('refresh_token')
-
-            if (at) {
-              var target = '/auth/set-password?access_token=' + encodeURIComponent(at)
-              if (rt) target += '&refresh_token=' + encodeURIComponent(rt)
-              // Hard redirect supaya tidak “kalah cepat” oleh router
-              window.location.replace(target)
-            }
-          }
-        } catch (e) {
-          // abaikan; biarkan app lanjut mount
-        }
-      })()
-    </script>
-
     <!-- quasar:entry-point -->
   </body>
 </html>

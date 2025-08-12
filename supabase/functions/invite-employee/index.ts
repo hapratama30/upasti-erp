@@ -37,33 +37,39 @@ serve(async (req) => {
 
     console.log("Mencoba mengirim undangan ke email:", email);
 
-    // Langsung kirim undangan. Supabase akan otomatis menangani apakah user sudah ada atau belum.
+    // ===== PENTING =====
+    // Gunakan URL produksi + history route (TANPA '#')
+    // Pastikan URL ini juga ada di Auth Settings -> Redirect URLs
+    const redirectTo = "https://upasti-erp.vercel.app/auth/callback";
+
+    // Kirim undangan resmi Supabase (Supabase yang kirim emailnya)
     const { data, error: inviteError } = await supabase.auth.admin
-      .inviteUserByEmail(
-        email,
-        {
-          redirectTo: "http://localhost:9000/#/auth/callback",
-        },
-      );
+      .inviteUserByEmail(email, {
+        redirectTo,
+      });
 
     if (inviteError) {
       console.error("Error saat mengirim undangan:", inviteError);
       throw new Error(inviteError.message);
     }
 
-    // Perbarui data karyawan dengan user_id yang baru jika user berhasil dibuat
+    // Update kolom user_id karyawan bila user baru dibuat
     if (data?.user?.id) {
-      console.log("Undangan berhasil terkirim. Mencoba update data karyawan.");
-      const { error: employeeError } = await supabase.from("employees").update({
-        user_id: data.user.id,
-      }).eq("id", employee_id);
+      console.log(
+        "Undangan terkirim. Update employees.user_id =",
+        data.user.id,
+      );
+      const { error: employeeError } = await supabase
+        .from("employees")
+        .update({ user_id: data.user.id })
+        .eq("id", employee_id);
 
       if (employeeError) {
         console.error("Error saat update karyawan:", employeeError);
         throw new Error(employeeError.message);
       }
     } else {
-      console.log("Undangan berhasil dikirim. User sudah ada.");
+      console.log("Undangan terkirim. User kemungkinan sudah ada.");
     }
 
     return new Response(
@@ -77,10 +83,9 @@ serve(async (req) => {
       },
     );
   } catch (error) {
-    let errorMessage = "An unknown error occurred";
-    if (error instanceof Error) {
-      errorMessage = error.message;
-    }
+    const errorMessage = error instanceof Error
+      ? error.message
+      : "An unknown error occurred";
     console.error("Final Catch Error:", errorMessage);
 
     return new Response(JSON.stringify({ error: errorMessage }), {
