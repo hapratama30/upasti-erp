@@ -47,12 +47,8 @@ const loading = ref(false)
 onMounted(async () => {
   const { data } = await supabase.auth.getSession()
   if (!data.session) {
-    const s = window.location.search || ''
-    const h = window.location.hash || ''
-    if (/(access_token|refresh_token|token_hash|type|code)=/.test(s + h)) {
-      const payload = s ? s : '?' + h.replace(/^#\/?/, '')
-      window.location.replace('/auth/callback' + payload)
-    }
+    // kalau tidak ada session, balik ke callback (tanpa loop)
+    router.replace('/auth/callback' + (window.location.search || ''))
   }
 })
 
