@@ -51,9 +51,6 @@ const loading = ref(false)
 const router = useRouter()
 const $q = useQuasar()
 
-// Hapus logika onMounted yang sebelumnya
-// Supabase akan otomatis memproses token dari URL hash.
-
 async function setPassword() {
   loading.value = true
   try {
