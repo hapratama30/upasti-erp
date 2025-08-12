@@ -1,53 +1,31 @@
 // src/boot/auth-redirect.js
 import { boot } from 'quasar/wrappers'
-import { supabase } from 'src/lib/supabaseClient'
 
-function grabTokens() {
-  let accessToken = null
-  let refreshToken = null
-
-  // ?access_token=...
-  if (window.location.search && window.location.search.includes('access_token')) {
-    const q = new URLSearchParams(window.location.search)
-    accessToken = q.get('access_token')
-    refreshToken = q.get('refresh_token')
-  }
-
-  // #access_token=... atau #/access_token=...
-  if (!accessToken && window.location.hash && window.location.hash.includes('access_token')) {
-    const raw = window.location.hash.replace(/^#\/?/, '')
-    const h = new URLSearchParams(raw)
-    accessToken = h.get('access_token')
-    refreshToken = h.get('refresh_token')
-  }
-
-  return { accessToken, refreshToken }
+function hasAnyTokenInUrl() {
+  const s = window.location.search
+  const h = window.location.hash
+  return (
+    (s &&
+      (s.includes('access_token=') ||
+        s.includes('refresh_token=') ||
+        s.includes('token_hash=') ||
+        s.includes('code='))) ||
+    (h &&
+      (h.includes('access_token=') ||
+        h.includes('refresh_token=') ||
+        h.includes('token_hash=') ||
+        h.includes('code=')))
+  )
 }
 
-function hardRedirectToSetPassword(tokens) {
-  if (!tokens.accessToken) return
-  const url = `/auth/set-password?access_token=${encodeURIComponent(tokens.accessToken)}${
-    tokens.refreshToken ? `&refresh_token=${encodeURIComponent(tokens.refreshToken)}` : ''
-  }`
-  window.location.replace(url)
-}
-
-export default boot(() => {
-  const initial = grabTokens()
-  if (initial.accessToken) {
-    hardRedirectToSetPassword(initial)
-    return
+// eslint-disable-next-line no-unused-vars
+export default boot(({ router }) => {
+  if (hasAnyTokenInUrl()) {
+    // Bawa SEMUA query/hash apa adanya supaya bisa diparse di callback
+    const raw = window.location.search
+      ? window.location.search
+      : '?' + window.location.hash.replace(/^#\/?/, '')
+    // Hard redirect (biar tidak kalah timing)
+    window.location.replace('/auth/callback' + raw)
   }
-
-  window.addEventListener('hashchange', () => {
-    const t = grabTokens()
-    if (t.accessToken) hardRedirectToSetPassword(t)
-  })
-
-  supabase.auth.onAuthStateChange((event, session) => {
-    if (session && (event === 'SIGNED_IN' || event === 'USER_UPDATED')) {
-      const t = grabTokens()
-      if (t.accessToken) hardRedirectToSetPassword(t)
-    }
-  })
 })

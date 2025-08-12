@@ -20,10 +20,13 @@ const routes = [
     ],
   },
 
+  // LAYOUT AUTH
   {
     path: '/auth',
     component: () => import('layouts/AuthLayout.vue'),
     children: [
+      // Handler untuk semua callback Supabase (link undangan, reset, magic link, dsb)
+      { path: 'callback', component: () => import('pages/auth/AuthCallback.vue') },
       { path: 'set-password', component: () => import('pages/auth/SetPasswordPage.vue') },
       { path: 'reset-password', component: () => import('pages/auth/ResetPasswordPage.vue') },
     ],

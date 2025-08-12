@@ -1,9 +1,11 @@
 <template>
-  <q-layout view="lHh Lpr lFf">
+  <q-layout view="hHh lpR fFf">
     <q-page-container>
       <router-view />
     </q-page-container>
   </q-layout>
 </template>
 
-<script setup></script>
+<script setup>
+// layout minimal khusus halaman auth
+</script>
