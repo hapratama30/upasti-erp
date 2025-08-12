@@ -61,6 +61,7 @@ const routes = [
     children: [
       { path: '', component: () => import('pages/EmployeesPage.vue') },
       { path: 'categories', component: () => import('pages/CategoriesPage.vue') },
+      { path: 'callback', component: () => import('pages/auth/AuthCallback.vue') }, // ⬅️ Rute baru untuk callback
     ],
   },
 
