@@ -1,3 +1,4 @@
+// src/router/routes.js
 import { supabase } from 'src/lib/supabaseClient'
 
 const routes = [
