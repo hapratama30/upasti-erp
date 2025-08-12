@@ -2,23 +2,22 @@
 import { boot } from 'quasar/wrappers'
 import { supabase } from 'src/lib/supabaseClient'
 
-function extractTokensFromLocation() {
-  // Bisa jadi: "#access_token=..." ATAU "#/access_token=..." ATAU "?access_token=..."
+function parseTokens() {
+  // Bisa datang sebagai ?access_token=... ATAU #access_token=... ATAU #/access_token=...
   let accessToken = null
   let refreshToken = null
 
-  // 1) Cek QUERY (?access_token=...)
+  // 1) Query string
   if (window.location.search && window.location.search.includes('access_token')) {
     const sp = new URLSearchParams(window.location.search)
     accessToken = sp.get('access_token')
     refreshToken = sp.get('refresh_token')
   }
 
-  // 2) Cek HASH (#access_token=... atau #/access_token=...)
+  // 2) Hash fragment
   if (!accessToken && window.location.hash && window.location.hash.includes('access_token')) {
-    // Hilangkan "#", lalu jika ada leading "/" hilangkan juga
+    // buang "#" lalu jika ada "/" di depan buang juga
     const raw = window.location.hash.replace(/^#\/?/, '')
-    // Sekarang raw akan berbentuk "access_token=...&refresh_token=..."
     const sp = new URLSearchParams(raw)
     accessToken = sp.get('access_token')
     refreshToken = sp.get('refresh_token')
@@ -27,36 +26,44 @@ function extractTokensFromLocation() {
   return { accessToken, refreshToken }
 }
 
-export default boot(({ router }) => {
-  // 0) Jika user membuka link dari email langsung, arahkan segera
-  const initialTokens = extractTokensFromLocation()
-  if (initialTokens.accessToken) {
-    // Bersihkan query/hash agar rapi
-    window.history.replaceState({}, document.title, window.location.pathname)
-    router.replace({
+function redirectToSetPassword(router, tokens) {
+  if (!tokens.accessToken) return
+  // JANGAN bersihkan hash dulu — langsung arahkan ke set-password
+  router
+    .replace({
       path: '/auth/set-password',
       query: {
-        access_token: initialTokens.accessToken,
-        refresh_token: initialTokens.refreshToken || '',
+        access_token: tokens.accessToken,
+        refresh_token: tokens.refreshToken || '',
       },
     })
+    .finally(() => {
+      // Setelah berhasil navigasi, baru rapikan URL
+      window.history.replaceState({}, document.title, window.location.pathname)
+    })
+}
+
+export default boot(({ router }) => {
+  // 1) Tangani saat halaman pertama kali dibuka dari email
+  const initial = parseTokens()
+  if (initial.accessToken) {
+    redirectToSetPassword(router, initial)
   }
 
-  // 1) Tetap listen perubahan sesi dari Supabase (seperti di kode asli kamu)
+  // 2) Tangani jika hash berubah (beberapa browser/flow bisa memicu hashchange)
+  window.addEventListener('hashchange', () => {
+    const tokens = parseTokens()
+    if (tokens.accessToken) {
+      redirectToSetPassword(router, tokens)
+    }
+  })
+
+  // 3) Tetap listen event Supabase (kode aslinya), tapi tidak membersihkan hash sebelum redirect
   supabase.auth.onAuthStateChange((event, session) => {
     if (session && (event === 'SIGNED_IN' || event === 'USER_UPDATED')) {
-      const { accessToken, refreshToken } = extractTokensFromLocation()
-      if (accessToken) {
-        // Bersihkan URL
-        window.history.replaceState({}, document.title, window.location.pathname)
-        // Redirect ke halaman set password
-        router.replace({
-          path: '/auth/set-password',
-          query: {
-            access_token: accessToken,
-            refresh_token: refreshToken || '',
-          },
-        })
+      const tokens = parseTokens()
+      if (tokens.accessToken) {
+        redirectToSetPassword(router, tokens)
       }
     }
   })
