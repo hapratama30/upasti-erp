@@ -336,8 +336,7 @@ const form = ref({
   position_id: '',
   salary: null,
   email: '',
-  // MENAMBAHKAN FIELD PASSWORD SEMENTARA UNTUK PENDAFTARAN BARU
-  password: '',
+  password: '', // FIELD BARU UNTUK PASSWORD
   phone_number: '',
   join_date: '',
   end_date: null,
@@ -349,7 +348,6 @@ const form = ref({
 // ----- RBAC Logic Start -----
 const userPermissions = ref([])
 
-// Helper untuk mengecek izin
 const hasPermission = (permission) => {
   return userPermissions.value.includes(permission)
 }
@@ -372,7 +370,6 @@ const allColumns = [
   { name: 'actions', label: 'Aksi', field: 'actions', align: 'center' },
 ]
 
-// Kolom yang ditampilkan disesuaikan dengan izin
 const filteredColumns = computed(() => {
   if (hasPermission('employees.edit') || hasPermission('employees.delete')) {
     return allColumns
@@ -387,7 +384,6 @@ async function fetchUserPermissions() {
 
     const user = userData.user
 
-    // ----- BAGIAN INI YANG DIPERBAIKI -----
     const { data: employeeData, error: employeeError } = await supabase
       .from('employees')
       .select('position_id')
@@ -408,7 +404,6 @@ async function fetchUserPermissions() {
 
     const positionId = employeeData.position_id
 
-    // ... (Sisa kode untuk mengambil permissions tidak berubah) ...
     const { data: permissions, error: permissionsError } = await supabase
       .from('position_permissions')
       .select('module_id, can_view, can_edit')
@@ -486,7 +481,7 @@ function tenantInsert(table, rows) {
 
 onMounted(async () => {
   await fetchActiveCompanyId()
-  await fetchUserPermissions() // Ambil permissions saat komponen di-mount
+  await fetchUserPermissions()
   await getEmployees()
   await getGenders()
   await getDivisions()
@@ -503,7 +498,6 @@ async function getEmployees() {
   loading.value = true
   if (!activeCompanyId.value || !hasPermission('employees.view')) {
     loading.value = false
-    // Tampilkan pesan jika tidak punya izin
     if (!hasPermission('employees.view')) {
       $q.notify({
         type: 'warning',
@@ -656,36 +650,45 @@ async function saveEmployee() {
         throw error
       }
     } else {
-      // LOGIKA BARU UNTUK MEMBUAT AKUN SUPABASE SECARA LANGSUNG
+      // --- LOGIKA BARU: PANGGIL EDGE FUNCTION 'create-employee' ---
       if (!form.value.password) {
         $q.notify({ type: 'negative', message: 'Password sementara harus diisi.' })
         formLoading.value = false
         return
       }
 
-      const { data: userData, error: userError } = await supabase.auth.admin.createUser({
-        email: form.value.email,
-        password: form.value.password,
-        email_confirm: true,
-        user_metadata: {
-          full_name: form.value.name,
-          role: 'employee',
-        },
-      })
+      const { data: edgeFunctionResult, error: edgeFunctionError } =
+        await supabase.functions.invoke('create-employee', {
+          body: {
+            email: form.value.email,
+            password: form.value.password,
+            userData: {
+              full_name: form.value.name,
+              role: 'karyawan',
+            },
+            employeePayload: payload,
+          },
+        })
 
-      if (userError) {
-        throw userError
+      if (edgeFunctionError) {
+        throw new Error(edgeFunctionError.message)
       }
+      if (edgeFunctionResult && edgeFunctionResult.error) {
+        throw new Error(edgeFunctionResult.error)
+      }
+
+      // Ambil user_id dari hasil Edge Function
+      const userId = edgeFunctionResult.user.id
 
       const newEmployeePayload = {
         ...payload,
-        user_id: userData.user.id, // Ambil user_id dari Supabase auth
+        user_id: userId,
       }
 
       const { error } = await tenantInsert('employees', newEmployeePayload)
       if (error) {
         // Jika insert ke tabel employees gagal, Anda mungkin ingin menghapus user auth yang baru dibuat
-        await supabase.auth.admin.deleteUser(userData.user.id)
+        await supabase.auth.admin.deleteUser(userId)
         throw error
       }
     }
@@ -708,12 +711,6 @@ async function saveEmployee() {
   }
 }
 
-// FUNGSI INI DIHAPUS KARENA SUDAH TIDAK DIGUNAKAN
-// async function inviteExistingEmployee(employee) {
-//   ...
-// }
-
-// ...
 async function resetPassword(employee) {
   if (!hasPermission('employees.edit')) {
     $q.notify({
@@ -734,7 +731,6 @@ async function resetPassword(employee) {
     persistent: true,
   }).onOk(async () => {
     try {
-      // Panggil Edge Function 'reset-password' yang sudah di-deploy
       const { data, error } = await supabase.functions.invoke('reset-password', {
         body: {
           email: employee.email,
@@ -822,8 +818,7 @@ const resetForm = () => {
     position_id: '',
     salary: null,
     email: '',
-    // TAMBAHKAN KEMBALI PASSWORD KE FORM
-    password: '',
+    password: '', // RESET JUGA FIELD PASSWORD
     phone_number: '',
     join_date: '',
     end_date: null,
