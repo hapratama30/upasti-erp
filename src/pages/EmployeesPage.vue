@@ -58,17 +58,6 @@
                       <q-item-section>Edit</q-item-section>
                     </q-item>
                     <q-item
-                      v-if="!props.row.user_id && hasPermission('employees.invite')"
-                      clickable
-                      v-close-popup
-                      @click="inviteExistingEmployee(props.row)"
-                    >
-                      <q-item-section avatar>
-                        <q-icon name="mail" color="blue" />
-                      </q-item-section>
-                      <q-item-section>Undang</q-item-section>
-                    </q-item>
-                    <q-item
                       v-if="props.row.user_id && hasPermission('employees.edit')"
                       clickable
                       v-close-popup
@@ -144,6 +133,13 @@
             />
             <q-input filled v-model="form.salary" label="Gaji" type="number" />
             <q-input filled v-model="form.email" type="email" label="Email" />
+            <q-input
+              v-if="!isEditMode"
+              filled
+              v-model="form.password"
+              type="password"
+              label="Password Sementara"
+            />
             <q-input filled v-model="form.phone_number" label="Nomor Telepon" />
             <q-input
               filled
@@ -340,6 +336,8 @@ const form = ref({
   position_id: '',
   salary: null,
   email: '',
+  // MENAMBAHKAN FIELD PASSWORD SEMENTARA UNTUK PENDAFTARAN BARU
+  password: '',
   phone_number: '',
   join_date: '',
   end_date: null,
@@ -646,7 +644,6 @@ async function saveEmployee() {
       end_date: form.value.end_date?.replace(/\//g, '-'),
       photo_url: photoUrl.value,
       is_active: form.value.is_active,
-      user_id: form.value.user_id,
     }
 
     if (isEditMode.value) {
@@ -659,8 +656,36 @@ async function saveEmployee() {
         throw error
       }
     } else {
-      const { error } = await tenantInsert('employees', payload)
+      // LOGIKA BARU UNTUK MEMBUAT AKUN SUPABASE SECARA LANGSUNG
+      if (!form.value.password) {
+        $q.notify({ type: 'negative', message: 'Password sementara harus diisi.' })
+        formLoading.value = false
+        return
+      }
+
+      const { data: userData, error: userError } = await supabase.auth.admin.createUser({
+        email: form.value.email,
+        password: form.value.password,
+        email_confirm: true,
+        user_metadata: {
+          full_name: form.value.name,
+          role: 'employee',
+        },
+      })
+
+      if (userError) {
+        throw userError
+      }
+
+      const newEmployeePayload = {
+        ...payload,
+        user_id: userData.user.id, // Ambil user_id dari Supabase auth
+      }
+
+      const { error } = await tenantInsert('employees', newEmployeePayload)
       if (error) {
+        // Jika insert ke tabel employees gagal, Anda mungkin ingin menghapus user auth yang baru dibuat
+        await supabase.auth.admin.deleteUser(userData.user.id)
         throw error
       }
     }
@@ -683,46 +708,10 @@ async function saveEmployee() {
   }
 }
 
-async function inviteExistingEmployee(employee) {
-  if (!hasPermission('employees.invite')) {
-    $q.notify({
-      type: 'negative',
-      message: 'Anda tidak memiliki izin untuk mengundang karyawan.',
-    })
-    return
-  }
-  if (!employee.email) {
-    $q.notify({ type: 'negative', message: 'Email karyawan tidak ditemukan.' })
-    return
-  }
-
-  $q.dialog({
-    title: 'Kirim Undangan',
-    message: `Apakah Anda yakin ingin mengirim undangan ke ${employee.email}?`,
-    cancel: true,
-    persistent: true,
-  }).onOk(async () => {
-    try {
-      // eslint-disable-next-line no-unused-vars
-      const { data, error } = await supabase.functions.invoke('invite-employee', {
-        body: {
-          email: employee.email,
-          name: employee.name,
-          company_id: activeCompanyId.value,
-          employee_id: employee.id,
-        },
-      })
-
-      if (error) throw error
-
-      $q.notify({ type: 'positive', message: 'Undangan berhasil dikirim!' })
-      await getEmployees()
-    } catch (err) {
-      console.error('Error saat mengirim undangan:', err)
-      $q.notify({ type: 'negative', message: 'Gagal mengirim undangan: ' + err.message })
-    }
-  })
-}
+// FUNGSI INI DIHAPUS KARENA SUDAH TIDAK DIGUNAKAN
+// async function inviteExistingEmployee(employee) {
+//   ...
+// }
 
 // ...
 async function resetPassword(employee) {
@@ -833,6 +822,7 @@ const resetForm = () => {
     position_id: '',
     salary: null,
     email: '',
+    // TAMBAHKAN KEMBALI PASSWORD KE FORM
     password: '',
     phone_number: '',
     join_date: '',
